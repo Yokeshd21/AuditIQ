@@ -720,6 +720,9 @@ if 'rubric_text_stored' not in st.session_state:
     st.session_state.rubric_text_stored = ""
 if 'narrative_text_stored' not in st.session_state:
     st.session_state.narrative_text_stored = ""
+# Original (unmodified) trace — used to detect if user actually changed it
+if 'original_trace' not in st.session_state:
+    st.session_state.original_trace = ""
 
 if analyze_btn:
     if not rubric_file or (selected_app == "CUCP Re-Evaluations" and not narrative_file) or (selected_app == "Personal Narrative" and not personal_narrative_file):
@@ -754,7 +757,9 @@ if analyze_btn:
                     
                     # Parse results for interactivity
                     trace_match = re.search(r'<trace>(.*?)</trace>', result_text, re.DOTALL)
-                    st.session_state.edited_trace = trace_match.group(1).strip() if trace_match else "Processing thoughts..."
+                    trace_text = trace_match.group(1).strip() if trace_match else "Processing thoughts..."
+                    st.session_state.edited_trace  = trace_text
+                    st.session_state.original_trace = trace_text  # snapshot for change detection
                     
                     json_match = re.search(r'<json>(.*?)</json>', result_text, re.DOTALL)
                     if json_match:
@@ -848,16 +853,61 @@ if st.session_state.current_evaluation:
         st.markdown("<div class='sec-head'>🗂  Operational Audit Matrix</div>", unsafe_allow_html=True)
         if "Evaluation" in data:
             eval_list = data.get("Evaluation", [])
+            
+            # ── Clean up Python list-string formatting globally before rendering ──
+            # e.g. "['Provide documented evidence...', 'item2']" → "Provide documented evidence... • item2"
+            import ast
+            for row in eval_list:
+                for k, v in row.items():
+                    if isinstance(v, list):
+                        row[k] = " • ".join(str(item).strip(" '\"") for item in v if str(item).strip(" '\""))
+                    elif isinstance(v, str):
+                        stripped = v.strip()
+                        if stripped.startswith("[") and stripped.endswith("]"):
+                            try:
+                                parsed = ast.literal_eval(stripped)
+                                if isinstance(parsed, list):
+                                    row[k] = " • ".join(str(item).strip(" '\"") for item in parsed if str(item).strip(" '\""))
+                            except Exception:
+                                row[k] = stripped[1:-1].strip().strip("'\"")
+                        # Also strip stray leading/trailing quotes/brackets
+                        if isinstance(row[k], str):
+                            row[k] = row[k].strip("'\"[]")
+                            
+            st.session_state.editable_data["Evaluation"] = eval_list
             df = pd.DataFrame(eval_list)
 
             if st.session_state.refinement_mode:
                 # EDITABLE MODE
+                # Use a callback to immediately capture edits into session state
+                # BEFORE the Save button triggers a rerun (which would lose them).
+                def _capture_edits():
+                    """Called by data_editor on_change — persists the delta immediately."""
+                    delta = st.session_state.get("data_editor_main", {})
+                    if not delta:
+                        return
+                    rows = list(st.session_state.editable_data.get("Evaluation", []))
+                    # Apply edited_rows changes
+                    for row_idx_str, changes in delta.get("edited_rows", {}).items():
+                        row_idx = int(row_idx_str)
+                        if row_idx < len(rows):
+                            rows[row_idx].update(changes)
+                    # Apply added_rows
+                    for new_row in delta.get("added_rows", []):
+                        rows.append(new_row)
+                    # Apply deleted_rows (in reverse so indices stay valid)
+                    for del_idx in sorted(delta.get("deleted_rows", []), reverse=True):
+                        if del_idx < len(rows):
+                            rows.pop(del_idx)
+                    st.session_state.editable_data["Evaluation"] = rows
+
                 try:
-                    edited_df = st.data_editor(
-                        df, 
-                        use_container_width=True, 
-                        hide_index=True, 
+                    st.data_editor(
+                        df,
+                        use_container_width=True,
+                        hide_index=True,
                         key="data_editor_main",
+                        on_change=_capture_edits,
                         column_config={
                             "Status": st.column_config.SelectboxColumn(
                                 "Status",
@@ -866,7 +916,6 @@ if st.session_state.current_evaluation:
                             )
                         }
                     )
-                    st.session_state.editable_data["Evaluation"] = edited_df.to_dict('records')
                 except Exception as e:
                     st.error(f"Editor error: {e}")
             else:
@@ -894,21 +943,6 @@ if st.session_state.current_evaluation:
                             cell_val = "" if v is None or (not isinstance(v, (list, dict)) and pd.isna(v)) else str(v)
                         except (TypeError, ValueError):
                             cell_val = str(row[col]) if row[col] is not None else ""
-
-                        # ── Clean up Python list-string formatting ──
-                        # e.g. "['Provide documented evidence...', 'item2']" → "Provide documented evidence... • item2"
-                        import ast
-                        stripped = cell_val.strip()
-                        if stripped.startswith("[") and stripped.endswith("]"):
-                            try:
-                                parsed = ast.literal_eval(stripped)
-                                if isinstance(parsed, list):
-                                    cell_val = " • ".join(str(item).strip(" '\"") for item in parsed if str(item).strip(" '\""))
-                            except Exception:
-                                # Fallback: manually strip outer brackets and quotes
-                                cell_val = stripped[1:-1].strip().strip("'\"")
-                        # Also strip stray leading/trailing quotes and brackets
-                        cell_val = cell_val.strip("'\"[]")
 
                         # Only Status column gets color — everything else is plain black text
                         if col == "Status":
@@ -988,12 +1022,17 @@ if st.session_state.current_evaluation:
     with col1:
         if st.session_state.refinement_mode:
             if st.button("💾 Save & Update View", use_container_width=True):
-                # ── TRACE-GUIDED LLM RE-EVALUATION ──
-                user_trace = st.session_state.edited_trace.strip()
-                rubric_stored   = st.session_state.get("rubric_text_stored", "")
+                user_trace      = st.session_state.edited_trace.strip()
+                original_trace  = st.session_state.original_trace.strip()
+                rubric_stored    = st.session_state.get("rubric_text_stored", "")
                 narrative_stored = st.session_state.get("narrative_text_stored", "")
 
-                if user_trace and rubric_stored and narrative_stored:
+                # Only call LLM if the user actually CHANGED the trace text.
+                # If they just edited table cells, skip LLM and keep the
+                # manual edits already captured by _capture_edits callback.
+                trace_was_changed = (user_trace != original_trace) and user_trace
+
+                if trace_was_changed and rubric_stored and narrative_stored:
                     client = get_groq_client()
                     if client:
                         with st.spinner("🤖  Re-evaluating based on your trace instructions…"):
@@ -1008,7 +1047,9 @@ if st.session_state.current_evaluation:
                         if result_text:
                             st.session_state.current_evaluation = result_text
                             trace_match = re.search(r'<trace>(.*?)</trace>', result_text, re.DOTALL)
-                            st.session_state.edited_trace = trace_match.group(1).strip() if trace_match else user_trace
+                            new_trace = trace_match.group(1).strip() if trace_match else user_trace
+                            st.session_state.edited_trace   = new_trace
+                            st.session_state.original_trace = new_trace  # reset baseline
                             json_match = re.search(r'<json>(.*?)</json>', result_text, re.DOTALL)
                             if json_match:
                                 try:
@@ -1022,14 +1063,25 @@ if st.session_state.current_evaluation:
                     else:
                         st.error("🔑  Groq API Key missing.")
                 else:
-                    st.info("ℹ️  No trace instructions found — just saving current view.")
+                    # Trace unchanged — manual table edits are already saved
+                    # by the _capture_edits callback. Nothing extra needed.
+                    st.success("✅  Your manual edits have been saved!")
 
                 st.session_state.refinement_mode = False
                 st.rerun()
         else:
             if st.button("✅ Confirm & Save to Timeline", use_container_width=True):
-                st.session_state.confirmed = True # Set a confirmation flag
-                st.success("Draft Saved Successfully!")
+                # Save the current state (including any manual edits) to history
+                import json as _json
+                snapshot = _json.dumps(st.session_state.editable_data) if st.session_state.editable_data else ""
+                st.session_state.history.append({
+                    "timestamp": time.time(),
+                    "score": 100,
+                    "data": snapshot,
+                    "manual": True,
+                })
+                st.session_state.confirmed = True
+                st.success("✅  Changes confirmed and saved to timeline!")
     with col2:
         if st.session_state.refinement_mode:
             if st.button("❌ Cancel Refinement", use_container_width=True):
