@@ -590,8 +590,7 @@ with st.sidebar:
     # Placeholders matching screenshot exactly
     sidebar_app = st.selectbox("Application", ["Select Application", "LLMatScale.ai"])
     st.selectbox("Application", ["Select LLM model", "Groq"])
-    st.selectbox("Specifications 2", ["LLM Framework"])
-    st.selectbox("Specifications 3", ["GCP Services Used"])
+    st.selectbox("Specifications 3", ["Streamlit Cloud Used"])
 
     # Adding spacing
     st.markdown("<div style='height: 30px;justify-content: center;'></div>", unsafe_allow_html=True)
