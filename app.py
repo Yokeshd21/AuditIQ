@@ -13,7 +13,7 @@ from utils import (
     create_pdf_download,
     apply_color_coding,
 )
-from ai_wrapper import get_groq_client, evaluate_performance, re_evaluate_with_trace
+from ai_wrapper import get_groq_client, evaluate_performance, re_evaluate_with_trace, chat_with_data
 
 st.set_page_config(
     page_title="Streamlit",
@@ -720,6 +720,8 @@ if 'rubric_text_stored' not in st.session_state:
     st.session_state.rubric_text_stored = ""
 if 'narrative_text_stored' not in st.session_state:
     st.session_state.narrative_text_stored = ""
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
 # Original (unmodified) trace — used to detect if user actually changed it
 if 'original_trace' not in st.session_state:
     st.session_state.original_trace = ""
@@ -1124,115 +1126,147 @@ if st.session_state.current_evaluation:
             st.download_button("📄 Export as PDF", data=pdf_data, file_name="audit_report.pdf", mime="application/pdf", use_container_width=True)
 
 
-# ─── FLOATING CHATBOT ────────────────────────────────────────────────────────
-st.markdown(
-    """
-<style>
-#chatbot-fab {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    z-index: 9999;
-    width: 64px;
-    height: 64px;
-    background: #3b82f6;
-    border-radius: 50%;
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
-#chatbot-fab svg { width: 36px; height: 36px; fill: #fff; }
+    # ─── E. FLOATING CHAT ASSISTANT (Native popover) ───
+    # Inject CSS to position the st.popover floating at the bottom right
+    st.markdown("""
+        <style>
+        /* ═══════════════════════════════════════
+           FLOATING CHAT ICON — Premium Animated
+        ═══════════════════════════════════════ */
 
-#chatbot-window {
-    position: fixed;
-    bottom: 110px;
-    right: 32px;
-    width: 340px;
-    max-width: 95vw;
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    z-index: 10000;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-}
-#chatbot-window.active { display: flex; }
-#chatbot-header {
-    background: #ffffff;
-    color: #3b82f6;
-    font-weight: 700;
-    padding: 16px;
-    font-size: 1rem;
-    border-bottom: 2px solid #f8fafc;
-    text-align: center;
-}
-#chatbot-messages { flex: 1; padding: 16px; overflow-y: auto; background: #ffffff; font-size: 0.95rem; }
-#chatbot-input-row { display: flex; border-top: 1px solid #e2e8f0; background: #fff; }
-#chatbot-input { flex: 1; border: none; padding: 12px; font-size: 0.95rem; outline: none; background: #fff; color: #1e293b; }
-#chatbot-send { background: none; border: none; color: #3b82f6; font-size: 1.2rem; padding: 0 16px; cursor: pointer; font-weight: 700; }
-</style>
+        /* ── Keyframe Animations ── */
+        @keyframes chatPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5), 0 4px 20px rgba(59,130,246,0.35); }
+            50%       { box-shadow: 0 0 0 14px rgba(59,130,246,0), 0 4px 20px rgba(59,130,246,0.35); }
+        }
+        @keyframes chatBounceIn {
+            0%   { transform: scale(0) translateY(60px); opacity: 0; }
+            60%  { transform: scale(1.15) translateY(-6px); opacity: 1; }
+            80%  { transform: scale(0.95) translateY(2px); }
+            100% { transform: scale(1) translateY(0); }
+        }
+        @keyframes chatIconFloat {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-5px); }
+        }
+        @keyframes chatGradientSpin {
+            0%   { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(30deg); }
+        }
 
-<div id="chatbot-fab" onclick="document.getElementById('chatbot-window').classList.toggle('active')">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" opacity="0.15"/><path d="M12 2C6.48 2 2 6.48 2 12c0 4.41 3.59 8 8 8 1.85 0 3.55-.63 4.9-1.69l3.7 1.01a1 1 0 0 0 1.22-1.22l-1.01-3.7A7.963 7.963 0 0 0 22 12c0-5.52-4.48-10-10-10zm-2 13h4v2h-4v-2zm6.31-2.9l-1.41 1.41C14.53 13.53 13.3 14 12 14s-2.53-.47-3.9-1.49l-1.41-1.41A5.978 5.978 0 0 1 6 12c0-3.31 2.69-6 6-6s6 2.69 6 6c0 .34-.03.67-.09.99z"/></svg>
-</div>
+        /* ── Fixed container — bottom right ── */
+        /* Target both the popover AND its Streamlit parent wrapper */
+        div:has(> div[data-testid="stPopover"]),
+        div[data-testid="stPopover"] {
+            position: fixed !important;
+            bottom: 28px !important;
+            right: 28px !important;
+            left: auto !important;
+            z-index: 99999 !important;
+            width: auto !important;
+            animation: chatBounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        /* Ensure the parent element container doesn't block it */
+        .stElementContainer:has(div[data-testid="stPopover"]) {
+            position: fixed !important;
+            bottom: 28px !important;
+            right: 28px !important;
+            left: auto !important;
+            z-index: 99999 !important;
+            width: auto !important;
+        }
 
-<div id="chatbot-window">
-    <div id="chatbot-header">namma llm.ai bot</div>
-    <div id="chatbot-messages"></div>
-    <div id="chatbot-input-row">
-        <input id="chatbot-input" type="text" maxlength="200" placeholder="Ask about this app..." onkeydown="if(event.key==='Enter'){window.sendChatbotMsg()}" />
-        <button id="chatbot-send" onclick="window.sendChatbotMsg()">➤</button>
-    </div>
-</div>
+        /* ── Circular button — gradient, glow, float ── */
+        div[data-testid="stPopover"] > button,
+        div[data-testid="stPopover"] > div > button {
+            border-radius: 50% !important;
+            width: 68px !important;
+            height: 68px !important;
+            min-width: 68px !important;
+            min-height: 68px !important;
+            padding: 0 !important;
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%) !important;
+            color: white !important;
+            border: none !important;
+            font-size: 30px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            animation: chatPulse 2.5s ease-in-out infinite, chatIconFloat 3s ease-in-out infinite, chatGradientSpin 4s linear infinite !important;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
+            box-shadow: 0 6px 24px rgba(59,130,246,0.45) !important;
+        }
 
-<script>
-window.sendChatbotMsg = function() {
-    var input = document.getElementById('chatbot-input');
-    var msg = input.value.trim();
-    if(!msg) return;
-    var messages = document.getElementById('chatbot-messages');
-    var userMsg = document.createElement('div');
-    userMsg.style.margin = '8px 0';
-    userMsg.style.textAlign = 'right';
-    userMsg.innerHTML = '<span style="background:#2563eb;color:#fff;padding:7px 14px;border-radius:16px 16px 2px 16px;display:inline-block;max-width:80%">'+msg+'</span>';
-    messages.appendChild(userMsg);
-    input.value = '';
-    messages.scrollTop = messages.scrollHeight;
-    // Simulate bot reply (content-restricted)
-    setTimeout(function(){
-        var botMsg = document.createElement('div');
-        botMsg.style.margin = '8px 0';
-        botMsg.style.textAlign = 'left';
-        botMsg.innerHTML = '<span style="background:#f3f4f6;color:#111;padding:7px 14px;border-radius:16px 16px 16px 2px;display:inline-block;max-width:80%">'+window.getBotReply(msg)+'</span>';
-        messages.appendChild(botMsg);
-        messages.scrollTop = messages.scrollHeight;
-    }, 700);
-}
+        /* ── Button hover — lift + intense glow ── */
+        div[data-testid="stPopover"] > button:hover,
+        div[data-testid="stPopover"] > div > button:hover {
+            transform: scale(1.12) translateY(-4px) !important;
+            box-shadow: 0 10px 35px rgba(99,102,241,0.6), 0 0 0 6px rgba(139,92,246,0.2) !important;
+            animation: chatGradientSpin 2s linear infinite !important;
+        }
 
-window.getBotReply = function(msg) {
-    msg = msg.toLowerCase();
-    if(msg.includes('criteria')||msg.includes('status')||msg.includes('evidence')||msg.includes('rubric')||msg.includes('narrative')||msg.includes('table')||msg.includes('score')){
-        return 'This bot can help you with content and features of this evaluation app. Please ask about rubrics, narratives, scoring, or table details.';
-    }
-    if(msg.includes('hello')||msg.includes('hi')){
-        return 'Hello! I am namma llm.ai bot. Ask me about this app.';
-    }
-    if(msg.includes('llm')||msg.includes('ai')){
-        return 'This app uses LLMs for evaluation. Ask about how it works!';
-    }
-    if(msg.includes('reset')||msg.includes('clear')){
-        return 'Use the Clear/Reset button in the sidebar to reset the app.';
-    }
-    if(msg.length < 8){
-        return 'Please ask a content-related question about this app.';
-    }
-    return 'Sorry, I can only answer questions about the content and features of this app.';
-}
-</script>
-""",
-    unsafe_allow_html=True,
-)
+        /* ── Button text (the emoji) ── */
+        div[data-testid="stPopover"] > button p,
+        div[data-testid="stPopover"] > div > button p {
+            font-size: 28px !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* ── Chat popover window — glassmorphism ── */
+        div[data-testid="stPopoverBody"] {
+            width: 400px !important;
+            max-width: 92vw !important;
+            max-height: 520px !important;
+            border-radius: 18px !important;
+            border: 1px solid rgba(255,255,255,0.3) !important;
+            background: rgba(255,255,255,0.97) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(59,130,246,0.08) !important;
+            padding: 1rem !important;
+            right: 0px !important;
+            left: auto !important;
+            margin-bottom: 78px !important;
+            animation: chatBounceIn 0.4s ease forwards !important;
+        }
+
+        </style>
+    """, unsafe_allow_html=True)
+
+    with st.popover("💬"):
+        st.markdown("<h4 style='color:#1f2937; margin-bottom: 5px; text-align: center;'>Namma LLM.ai Chat</h4>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 0.8rem; color: #64748b; text-align: center; margin-bottom: 10px;'>Ask questions about this evaluation.</p>", unsafe_allow_html=True)
+        
+        chat_container = st.container(height=350)
+        for msg in st.session_state.chat_history:
+            with chat_container.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                
+        # Input for chat
+        if prompt := st.chat_input("Ask about the evaluation..."):
+            st.session_state.chat_history.append({"role": "user", "content": prompt})
+            with chat_container.chat_message("user"):
+                st.markdown(prompt)
+                
+            with chat_container.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    client = get_groq_client()
+                    if client and st.session_state.rubric_text_stored and st.session_state.narrative_text_stored:
+                        response = chat_with_data(
+                            client=client,
+                            rubric_text=st.session_state.rubric_text_stored,
+                            narrative_text=st.session_state.narrative_text_stored,
+                            evaluation_data=st.session_state.get("editable_data"),
+                            user_message=prompt,
+                            chat_history=st.session_state.chat_history[:-1]
+                        )
+                    elif not client:
+                        response = "⚠️ API Key missing. Please set GROQ_API_KEY."
+                    else:
+                        response = "⚠️ Please upload and analyze documents first before chatting."
+                    
+                    st.markdown(response)
+                    st.session_state.chat_history.append({"role": "assistant", "content": response})
