@@ -177,125 +177,102 @@ st.markdown(
     /* Drop Zone Container */
     [data-testid="stFileUploadDropzone"] {
         position: relative !important;
-        background: linear-gradient(135deg, #f8faff 0%, #eef4ff 50%, #f0f9ff 100%) !important;
-        border: 2px dashed #93c5fd !important;
-        border-radius: 20px !important;
-        padding: 3.5rem 2.5rem !important;
+        background: #ffffff !important;
+        border: 2px dashed #c8d3e0 !important;
+        border-radius: 14px !important;
+        padding: 3rem 2.5rem !important;
         text-align: center !important;
         cursor: pointer !important;
-        transition: all 0.45s cubic-bezier(0.23, 1, 0.32, 1) !important;
-        animation: pulseGlow 3s ease-in-out infinite, fadeSlideIn 0.5s ease !important;
+        transition: all 0.3s ease !important;
         overflow: hidden !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
     }
 
-    /* Radial spotlight overlay (decorative) */
+    /* Subtle radial overlay (decorative, very faint) */
     [data-testid="stFileUploadDropzone"]::before {
         content: '' !important;
         position: absolute !important;
         inset: 0 !important;
-        background: radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.07) 0%, transparent 70%) !important;
+        background: none !important;
         pointer-events: none !important;
-        border-radius: inherit !important;
     }
 
     /* Hover State */
     [data-testid="stFileUploadDropzone"]:hover {
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #e0f2fe 100%) !important;
+        background: #f7f9fc !important;
         border-color: #3b82f6 !important;
         border-style: solid !important;
-        transform: translateY(-3px) scale(1.01) !important;
-        box-shadow: 0 12px 40px rgba(59,130,246,0.18), 0 4px 16px rgba(59,130,246,0.10) !important;
-        animation: none !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 24px rgba(59,130,246,0.12) !important;
     }
 
     /* Active / Drag-over */
     [data-testid="stFileUploadDropzone"]:active,
     [data-testid="stFileUploadDropzone"][data-dragging="true"] {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+        background: #eef4ff !important;
         border-color: #2563eb !important;
-        transform: scale(1.02) !important;
-        box-shadow: 0 16px 48px rgba(59,130,246,0.25) !important;
+        box-shadow: 0 8px 24px rgba(37,99,235,0.15) !important;
     }
 
-    /* Upload SVG Icon — floating animation */
+    /* Upload SVG Icon */
     [data-testid="stFileUploadDropzone"] svg {
-        fill: #3b82f6 !important;
-        color: #3b82f6 !important;
-        filter: drop-shadow(0 4px 8px rgba(59,130,246,0.30)) !important;
-        animation: floatIcon 2.8s ease-in-out infinite !important;
+        fill: #4b5563 !important;
+        color: #4b5563 !important;
+        filter: none !important;
     }
 
-    /* Drag & drop main label */
+    /* Drag & drop main label — solid black */
     [data-testid="stFileUploadDropzone"] p {
-        color: #1e3a5f !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
+        color: #111827 !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
         font-family: 'Inter', sans-serif !important;
-        letter-spacing: 0.2px !important;
-        margin-top: 12px !important;
+        letter-spacing: 0.1px !important;
+        margin-top: 10px !important;
     }
 
-    /* Hint text "Limit … per file" — NOT in button */
+    /* Hint text (file size limit etc.) — dark grey, readable */
     [data-testid="stFileUploadDropzone"] span:not(button span):not(button *) {
-        color: #64748b !important;
+        color: #374151 !important;
         font-size: 12.5px !important;
         font-weight: 500 !important;
-        letter-spacing: 0.1px !important;
     }
 
     /* ── Browse Files Button ── */
     [data-testid="stFileUploadDropzone"] button {
-        position: relative !important;
-        overflow: hidden !important;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%) !important;
+        background: #3b82f6 !important;
         color: #ffffff !important;
         border: none !important;
-        border-radius: 12px !important;
-        padding: 11px 32px !important;
-        font-weight: 700 !important;
+        border-radius: 8px !important;
+        padding: 10px 28px !important;
+        font-weight: 600 !important;
         font-size: 14px !important;
         font-family: 'Inter', sans-serif !important;
-        letter-spacing: 0.5px !important;
-        box-shadow: 0 5px 18px rgba(59,130,246,0.45), 0 2px 6px rgba(37,99,235,0.3) !important;
-        transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s ease !important;
+        letter-spacing: 0.3px !important;
+        box-shadow: 0 2px 8px rgba(59,130,246,0.30) !important;
+        transition: all 0.2s ease !important;
         cursor: pointer !important;
-        margin-top: 8px !important;
-    }
-
-    /* Shimmer sweep on button */
-    [data-testid="stFileUploadDropzone"] button::after {
-        content: '' !important;
-        position: absolute !important;
-        top: 0 !important;
-        left: -100% !important;
-        width: 60% !important;
-        height: 100% !important;
-        background: linear-gradient(to right,
-            rgba(255,255,255,0)   0%,
-            rgba(255,255,255,0.35) 50%,
-            rgba(255,255,255,0)   100%) !important;
-        transform: skewX(-18deg) !important;
-        animation: browseShine 2.8s ease-in-out infinite !important;
+        margin-top: 10px !important;
     }
 
     /* Button text — force white at all times */
     [data-testid="stFileUploadDropzone"] button span,
     [data-testid="stFileUploadDropzone"] button * {
         color: #ffffff !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
     }
 
     /* Button hover */
     [data-testid="stFileUploadDropzone"] button:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        transform: translateY(-3px) scale(1.04) !important;
-        box-shadow: 0 10px 28px rgba(59,130,246,0.55) !important;
+        background: #2563eb !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(59,130,246,0.40) !important;
     }
 
     /* Button press */
     [data-testid="stFileUploadDropzone"] button:active {
-        transform: translateY(-1px) scale(0.97) !important;
-        box-shadow: 0 4px 12px rgba(59,130,246,0.35) !important;
+        transform: translateY(0px) !important;
+        box-shadow: 0 2px 6px rgba(59,130,246,0.25) !important;
     }
 
     /* Uploaded file info chips */
@@ -305,7 +282,7 @@ st.markdown(
     [data-testid="stUploadedFileName"],
     .uploadedFileName,
     .uploadedFileSize {
-        color: #1e293b !important;
+        color: #111827 !important;
         font-weight: 600 !important;
         font-size: 13px !important;
     }
@@ -649,7 +626,7 @@ with c2:
         st.markdown("<div style='margin-top: 15px; font-size: 16px; color: #666; font-weight: 600;'>Please select the application in the left sidebar.</div>", unsafe_allow_html=True)
         selected_app = "None"
     else:
-        selected_app = st.selectbox("app_selector_main", ["Select an application", "CUCP Re-Evaluations", "Personal Narrative"], key="app_selector_main")
+        selected_app = st.selectbox("app_selector_main", ["Select an application","Personal Narrative"], key="app_selector_main")
 
 st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True)
 
@@ -662,23 +639,6 @@ personal_narrative_file = None
 if selected_app == "Select an application":
     # Show empty space when no application selected
     st.markdown("<div style='height: 300px;'></div>", unsafe_allow_html=True)
-
-elif selected_app == "CUCP Re-Evaluations":
-    # --- Row 2: Upload Narrative ---
-    c1, c2 = st.columns([1, 1.4])
-    with c1:
-        st.markdown("<div class='section-left-title'>Upload the<br>Narrative (PDF)</div>", unsafe_allow_html=True)
-    with c2:
-        narrative_file = st.file_uploader("Upload CUCP Narrative", type=["pdf", "docx", "txt"], key="cucp_narrative")
-
-    st.markdown("<div style='height: 50px;'></div>", unsafe_allow_html=True)
-
-    # --- Row 3: Upload Rubric ---
-    c1, c2 = st.columns([1, 1.4])
-    with c1:
-        st.markdown("<div class='section-left-title'>Upload the<br>Rubric (PDF)</div>", unsafe_allow_html=True)
-    with c2:
-        rubric_file = st.file_uploader("Upload CUCP Rubric", type=["pdf", "docx", "txt"], key="cucp_rubric")
 
 elif selected_app == "Personal Narrative":
     # --- Row 2: Upload Personal Narrative ---
@@ -806,19 +766,52 @@ if st.session_state.current_evaluation:
     else:
         formatted_trace = trace_content.replace("\n", "<br>")
         st.markdown(f"""
-        <div id="tracing-container" class="glass-card" style="margin-bottom: 2rem; border-left: 4px solid #3b82f6; padding: 1.5rem;">
+        <style>
+            .trace-details {{
+                margin-bottom: 2rem; 
+                border-left: 4px solid #3b82f6;
+            }}
+            .trace-details summary {{
+                list-style: none;
+                cursor: pointer;
+                outline: none;
+                margin-top: 15px; 
+                padding: 8px 20px; 
+                border-radius: 6px; 
+                border: 1px solid #3b82f6; 
+                background: transparent; 
+                color: #3b82f6; 
+                font-weight: 600; 
+                transition: all 0.3s ease;
+                display: inline-block;
+            }}
+            .trace-details summary:hover {{
+                background: rgba(59, 130, 246, 0.05);
+                transform: translateY(-1px);
+            }}
+            .trace-details summary::-webkit-details-marker {{
+                display: none;
+            }}
+            .trace-content {{
+                color: #64748b; 
+                font-style: italic; 
+                line-height: 1.6; 
+                margin-top: 15px; 
+                border-top: 1px solid #e2e8f0; 
+                padding-top: 15px;
+            }}
+        </style>
+        <div class="glass-card trace-details">
             <h4 style="margin-top:0; color:#3b82f6; display:flex; align-items:center;">
                 <svg style="width:20px;height:20px;margin-right:8px;fill:#3b82f6;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
                 Tracing Phase (Internal Reasoning)
             </h4>
-            <div id="tracing-content" style="display:none; color:#64748b; font-style:italic; line-height: 1.6; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                {formatted_trace}
-            </div>
-            <button 
-                onclick="document.getElementById('tracing-content').style.display='block'; this.style.display='none'; document.getElementById('tracing-container').classList.remove('shimmer');" 
-                style="margin-top:15px; padding:8px 20px; border-radius:6px; border:1px solid #3b82f6; background:transparent; color:#3b82f6; font-weight:600; cursor:pointer; transition: all 0.3s ease;">
-                View Trace
-            </button>
+            <details>
+                <summary>View Trace</summary>
+                <div class="trace-content">
+                    {formatted_trace}
+                </div>
+            </details>
         </div>
         """, unsafe_allow_html=True)
 
